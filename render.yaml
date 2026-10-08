@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: nova-marketing-governance
+    env: python
+    buildCommand: "pip install -r requirements.txt && python seed.py"
+    startCommand: "gunicorn app:app"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0

@@ -1,0 +1,317 @@
+[
+ {
+  "id": "T01",
+  "title": "Budget ₹30,000 routes to Regional Manager only",
+  "scenario": "Submit a valid ₹30,000 request",
+  "expected": "Chain = Regional Manager (1 level)",
+  "actual": "Rule 'Tier 1 - Below ₹50,000' -> Regional Manager (1 level)",
+  "status": "PASS",
+  "ms": 17
+ },
+ {
+  "id": "T02",
+  "title": "Budget ₹1,50,000 routes to Regional Manager + Marketing Manager",
+  "scenario": "Submit a valid ₹1,50,000 request",
+  "expected": "Chain = Regional Manager > Marketing Manager",
+  "actual": "Tier 2 - ₹50,000 to ₹2,00,000 -> Regional Manager > Marketing Manager",
+  "status": "PASS",
+  "ms": 14
+ },
+ {
+  "id": "T03",
+  "title": "Budget ₹3,00,000 routes to all four approvers",
+  "scenario": "Submit a valid ₹3,00,000 request",
+  "expected": "Chain = Regional Manager > Marketing Manager > Marketing Head > Business Head",
+  "actual": "Tier 3 - Above ₹2,00,000 -> Regional Manager > Marketing Manager > Marketing Head > Business Head",
+  "status": "PASS",
+  "ms": 16
+ },
+ {
+  "id": "T04",
+  "title": "Rule boundaries are exact",
+  "scenario": "Classify ₹49,999 / ₹50,000 / ₹2,00,000 / ₹2,00,001",
+  "expected": "1 / 2 / 2 / 4 approval levels",
+  "actual": "Levels: 1 / 2 / 2 / 4",
+  "status": "PASS",
+  "ms": 4
+ },
+ {
+  "id": "T05",
+  "title": "Missing campaign objective fails validation",
+  "scenario": "Submit a request with no Objective",
+  "expected": "Status = Validation Failed; error names the Objective field; requester is notified; no approver is notified",
+  "actual": "Validation Failed; errors: Marketing objective is required; notification: Validation Failed to requester",
+  "status": "PASS",
+  "ms": 8
+ },
+ {
+  "id": "T06",
+  "title": "Invalid budget values are rejected",
+  "scenario": "Submit budgets of -5, 'abc', 0 and ₹60,00,000",
+  "expected": "Each returns Validation Failed with a Proposed_Budget message",
+  "actual": "-5: Budget must be greater than zero | 'abc': Budget must be a number | 0: Budget must be greater than zero | 6000000: Budget exceeds the ₹5,000,000 single-request ceiling; split or escalate",
+  "status": "PASS",
+  "ms": 13
+ },
+ {
+  "id": "T07",
+  "title": "Invalid dates are rejected",
+  "scenario": "Submit end-before-start, start in the past, and a 200-day campaign",
+  "expected": "Date errors on Start_Date / End_Date for each",
+  "actual": "end<start: End date cannot be before the start date | past start: Start date cannot be in the past | 200 days: Campaign duration cannot exceed 120 days",
+  "status": "PASS",
+  "ms": 11
+ },
+ {
+  "id": "T08",
+  "title": "Expected conversions cannot exceed expected leads",
+  "scenario": "Submit 100 leads with 150 conversions",
+  "expected": "Validation Failed on Expected_Conversions",
+  "actual": "Expected conversions cannot exceed expected leads",
+  "status": "PASS",
+  "ms": 7
+ },
+ {
+  "id": "T09",
+  "title": "Duplicate request is blocked",
+  "scenario": "Submit the same name/region/start date twice",
+  "expected": "Second submission raises DuplicateRequest, no new campaign is created, attempt is audited",
+  "actual": "Blocked: Duplicate request: you already raised 'Test Campaign 9-1' starting 2026-10-07 as MKT-2026-... (rows unchanged at 23, audited)",
+  "status": "PASS",
+  "ms": 9
+ },
+ {
+  "id": "T10",
+  "title": "Campaign IDs are unique and sequential",
+  "scenario": "Create three campaigns",
+  "expected": "IDs follow MKT-<year>-NNN and increase by one",
+  "actual": "MKT-2026-023, MKT-2026-024, MKT-2026-025",
+  "status": "PASS",
+  "ms": 9
+ },
+ {
+  "id": "T11",
+  "title": "Executive cannot approve their own campaign",
+  "scenario": "Aman Sharma (executive) tries to approve the campaign he raised",
+  "expected": "AccessDenied; campaign remains Pending Approval; attempt is written to the audit trail",
+  "actual": "Access denied: you cannot approve a campaign you requested (segregation of duties) | status still Pending Approval | audit: Unauthorized Approval Attempt",
+  "status": "PASS",
+  "ms": 10
+ },
+ {
+  "id": "T12",
+  "title": "Segregation of duties: an approver cannot approve a request attributed to them",
+  "scenario": "Requester identity on a request is set to the Regional Manager (simulating a manager-raised request) and that manager tries to approve",
+  "expected": "AccessDenied (segregation of duties)",
+  "actual": "Access denied: you cannot approve a campaign you requested (segregation of duties)",
+  "status": "PASS",
+  "ms": 11
+ },
+ {
+  "id": "T13",
+  "title": "Approval out of sequence is refused",
+  "scenario": "Marketing Manager tries to approve before the Regional Manager",
+  "expected": "OutOfSequence; no approval recorded",
+  "actual": "Out of sequence: this campaign is still waiting for the Regional Manager (level 1) before your Marketing Manager approval (level 2) can be given | approval_log rows: 0",
+  "status": "PASS",
+  "ms": 9
+ },
+ {
+  "id": "T14",
+  "title": "Regional Manager of another region is refused",
+  "scenario": "Mumbai's Vikram Desai tries to approve a Delhi NCR campaign",
+  "expected": "AccessDenied (outside region)",
+  "actual": "Access denied: you are the Regional Manager for Mumbai, this campaign belongs to Delhi NCR",
+  "status": "PASS",
+  "ms": 11
+ },
+ {
+  "id": "T15",
+  "title": "Dispatch before approval is blocked",
+  "scenario": "Execution Team tries to dispatch a Pending Approval campaign",
+  "expected": "GovernanceViolation; Execution_Status stays 'Not Ready'; blocked attempt audited",
+  "actual": "Dispatch blocked: campaign is 'Pending Approval' (PENDING APPROVAL - EXECUTION BLOCKED). Open items: Regional Manager Ap... | Execution_Status = Not Ready",
+  "status": "PASS",
+  "ms": 10
+ },
+ {
+  "id": "T16",
+  "title": "Database refuses 'Ready for Execution' without full approval",
+  "scenario": "Raw SQL: set Execution_Status='Ready for Execution' on a pending campaign",
+  "expected": "SQLite trigger aborts the update (rule enforced below the application)",
+  "actual": "GOVERNANCE VIOLATION: Execution_Status cannot be Ready for Execution/Executed unless Approval_Status is Fully Approved",
+  "status": "PASS",
+  "ms": 9
+ },
+ {
+  "id": "T17",
+  "title": "Database refuses 'Fully Approved' without every required approval",
+  "scenario": "Raw SQL: set Approval_Status='Fully Approved' with 0 approvals logged",
+  "expected": "SQLite trigger aborts the update",
+  "actual": "GOVERNANCE VIOLATION: Fully Approved requires every required approval level to be logged for the current revision",
+  "status": "PASS",
+  "ms": 10
+ },
+ {
+  "id": "T18",
+  "title": "Rejected campaign cannot execute and requester is notified",
+  "scenario": "Regional Manager rejects (with and without a reason), then execution is attempted",
+  "expected": "Reason is mandatory; status Rejected; dispatch blocked; requester receives a 'Rejected' e-mail",
+  "actual": "Status Rejected, reason stored: 'Budget duplicates the running Instagram campaign', dispatch blocked, e-mail to Aman Sharma",
+  "status": "PASS",
+  "ms": 11
+ },
+ {
+  "id": "T19",
+  "title": "Send back for revision, edit, resubmit restarts the chain",
+  "scenario": "MM sends back at level 2; requester edits and resubmits",
+  "expected": "Rework Required -> Pending Approval, Revision 2, approvals restart at Regional Manager; old approvals do not count",
+  "actual": "Status Pending Approval, revision 2, current approver Rahul Mehta (Regional Manager); level-1 control shows 'pending'",
+  "status": "PASS",
+  "ms": 11
+ },
+ {
+  "id": "T20",
+  "title": "Campaign cannot be modified while pending or after approval",
+  "scenario": "Requester edits a pending campaign and an approved campaign; raw SQL edits budget of a pending campaign",
+  "expected": "App refuses with 'locked'; DB trigger refuses the raw edit; edit attempts audited",
+  "actual": "App: Campaign is 'Fully Approved' and locked for editing. Approved or in-approval req... | DB: GOVERNANCE VIOLATION: campaign details are locked while pending approval or after approval",
+  "status": "PASS",
+  "ms": 11
+ },
+ {
+  "id": "T21",
+  "title": "Approval log and audit trail are append-only",
+  "scenario": "Raw SQL UPDATE and DELETE against APPROVAL_LOG and AUDIT_TRAIL",
+  "expected": "All four statements are aborted by triggers",
+  "actual": "4/4 blocked (APPROVAL_LOG is append-only)",
+  "status": "PASS",
+  "ms": 10
+ },
+ {
+  "id": "T22",
+  "title": "Two-level happy path to Ready for Execution",
+  "scenario": "₹1,50,000: Rahul Mehta then Priya Kapoor approve",
+  "expected": "Fully Approved, governance FULLY COMPLIANT, Ready for Execution, execution team e-mail contains all required fields",
+  "actual": "Fully Approved / Ready for Execution / FULLY COMPLIANT; dispatch e-mail has ID, name, region, budget, dates, objective, status, instructions",
+  "status": "PASS",
+  "ms": 11
+ },
+ {
+  "id": "T23",
+  "title": "Four-level path needs all four approvals",
+  "scenario": "₹3,00,000: approve in order; check state after each level",
+  "expected": "Pending after levels 1-3; Fully Approved only after Business Head; 4 approvals logged",
+  "actual": "Pending Approval -> Pending Approval -> Pending Approval -> Fully Approved; 4 approvals logged",
+  "status": "PASS",
+  "ms": 11
+ },
+ {
+  "id": "T24",
+  "title": "Only executives of their own region can raise requests",
+  "scenario": "Regional Manager creates a request; Delhi executive creates a Mumbai request",
+  "expected": "Both are AccessDenied",
+  "actual": "Only Regional Marketing Executives can raise campaign requests | You can only raise requests for your own region (Delhi NCR)",
+  "status": "PASS",
+  "ms": 5
+ },
+ {
+  "id": "T25",
+  "title": "Execution requires dispatch; execution opens performance tracking",
+  "scenario": "Mark executed before and after dispatch",
+  "expected": "Blocked before approval; allowed after; performance row created",
+  "actual": "Blocked while pending; after approval -> Executed; performance row created (Budget 30,000)",
+  "status": "PASS",
+  "ms": 10
+ },
+ {
+  "id": "T26",
+  "title": "Missing lead data is handled",
+  "scenario": "Update performance with no leads; add a lead to a non-executed campaign",
+  "expected": "Warning + blank CPL/ROAS (no crash); lead on non-executed campaign refused",
+  "actual": "Warning: 'No lead data captured yet for this campaign - CPL, conversion rate, RO...'; CPL = None; lead on non-executed campaign refused",
+  "status": "PASS",
+  "ms": 15
+ },
+ {
+  "id": "T27",
+  "title": "KPI formulas: CPL, conversion rate, ROAS, ROI",
+  "scenario": "Check MKT-2026-001 (spec example: 850 leads, 95 conversions, ₹7,20,000 revenue)",
+  "expected": "CPL = spend/leads, Conv. rate = conversions/leads, ROAS = revenue/spend, ROI = (revenue-spend)/spend",
+  "actual": "Spend ₹108,500: CPL ₹127.65, conversion 11.18%, ROAS 6.64x, ROI 563.6%",
+  "status": "PASS",
+  "ms": 8
+ },
+ {
+  "id": "T28",
+  "title": "Lead roll-up reconciles with LEAD_DATA",
+  "scenario": "Compare CAMPAIGN_PERFORMANCE totals with a recount of LEAD_DATA for every executed campaign",
+  "expected": "Leads, qualified, conversions and revenue match exactly for all campaigns",
+  "actual": "9 campaigns reconcile; 0 lead rows",
+  "status": "PASS",
+  "ms": 5
+ },
+ {
+  "id": "T29",
+  "title": "Dashboard filters and role scoping",
+  "scenario": "Compare Delhi NCR filter to its raw count; executive sees only own campaigns; regional manager sees own region",
+  "expected": "Counts equal; executive and RM scopes enforced",
+  "actual": "Delhi NCR filter = 5 (raw 5); Aman sees 2; RM scope = Delhi only; channel 'Instagram' matches 13",
+  "status": "PASS",
+  "ms": 6
+ },
+ {
+  "id": "T30",
+  "title": "Approval rules are table-driven, not hard-coded",
+  "scenario": "Business Head changes Tier 1 to require RM + MM; a ₹30,000 request is submitted",
+  "expected": "New request routes to RM > MM; an invalid rule set (gap) is rejected",
+  "actual": "₹30,000 now routes Regional Manager > Marketing Manager; invalid edit rejected: Gap or overlap between 'Tier 1 - Below ₹50,000' (up to ₹40,000) and 'Tier 2 - ₹50,000 to ₹2,00,000' (from ₹50,000)",
+  "status": "PASS",
+  "ms": 11
+ },
+ {
+  "id": "T31",
+  "title": "Process metrics: reduction formula",
+  "scenario": "Compute (Before - After) / Before x 100 from measured timestamps",
+  "expected": "Matches manual calculation; measured average for standard requests < 25 min",
+  "actual": "Before 120 min -> after 21.5 min (n=8) = 82.1% reduction; at the 25-min ceiling = 79.2%",
+  "status": "PASS",
+  "ms": 9
+ },
+ {
+  "id": "T32",
+  "title": "Audit trail covers the whole lifecycle",
+  "scenario": "Run a campaign from creation to performance; list audit events",
+  "expected": "Created, Validation Completed, Approval Requested, Approval Granted, Campaign Dispatched, Campaign Executed, Performance Updated all present with user, timestamp and status transition",
+  "actual": "9 events: Campaign Created, Validation Completed, Approval Requested, Approval Granted, Governance Check, Campaign Fully Approved, Campaign Dispatched, Campaign Executed, Performance Updated",
+  "status": "PASS",
+  "ms": 17
+ },
+ {
+  "id": "T33",
+  "title": "Scripted Diwali demo runs end to end",
+  "scenario": "Run the 15-step Diwali Smart Savings scenario (₹1,80,000, Delhi NCR)",
+  "expected": "Campaign created, routed RM > MM, fully approved, Ready for Execution, executed with leads; dashboard KPIs increase",
+  "actual": "MKT-2026-023: 12 steps in 0.01s; budget ₹180,000, route Regional Manager > Marketing Manager; campaigns 22->23, leads 0->285",
+  "status": "PASS",
+  "ms": 19
+ },
+ {
+  "id": "T34",
+  "title": "Every executed/dispatched campaign in the data set is governance-compliant",
+  "scenario": "Run check_governance on all Ready/Executed campaigns",
+  "expected": "100% FULLY COMPLIANT",
+  "actual": "11/11 compliant (100%)",
+  "status": "PASS",
+  "ms": 6
+ },
+ {
+  "id": "T35",
+  "title": "HTTP layer enforces roles",
+  "scenario": "Unauthenticated call; executive POSTs /approve; executive GETs the audit export; manager approves via API",
+  "expected": "401, 403, 403, 200",
+  "actual": "401, 403 (Access denied: you cannot approve a campaign you r...), 403, 200; wrong password -> 401",
+  "status": "PASS",
+  "ms": 958
+ }
+]
